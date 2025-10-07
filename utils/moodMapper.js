@@ -48,7 +48,7 @@ const mapMood = (label) => {
   return moodMap[normalizedLabel] || "Calm";
 };
 
-// New function to validate emotion consistency across multiple AI models
+// Function to validate emotion consistency across multiple AI models
 const validateEmotionConsistency = (bestResult, allResults) => {
   // If we only have one result, return it as-is
   if (allResults.length <= 1) {

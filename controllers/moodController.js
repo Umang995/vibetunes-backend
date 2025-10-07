@@ -1,109 +1,5 @@
 const axios = require('axios');
-
-// Simple mood mapping function (no external dependencies)
-const mapMood = (label) => {
-  const moodMap = {
-    // Primary emotions
-    happy: "Happy",
-    joy: "Happy",
-    pleasure: "Happy",
-    
-    // Calm/Neutral emotions
-    neutral: "Calm",
-    calm: "Calm",
-    peaceful: "Calm",
-    
-    // Sad emotions
-    sad: "Melancholic",
-    sadness: "Melancholic",
-    sorrow: "Melancholic",
-    grief: "Melancholic",
-    
-    // Angry/Energetic emotions
-    angry: "Energetic",
-    anger: "Energetic",
-    rage: "Energetic",
-    mad: "Energetic",
-    
-    // Surprised/Excited emotions
-    surprised: "Excited",
-    surprise: "Excited",
-    amazement: "Excited",
-    wonder: "Excited",
-    
-    // Fear emotions (map to Melancholic as they're negative)
-    fear: "Melancholic",
-    scared: "Melancholic",
-    afraid: "Melancholic",
-    
-    // Disgust emotions (map to Melancholic)
-    disgust: "Melancholic",
-    disgusted: "Melancholic",
-    
-    // Love/Romance emotions
-    love: "Romantic",
-    affection: "Romantic",
-    romantic: "Romantic"
-  };
-
-  const normalizedLabel = label.toLowerCase();
-  return moodMap[normalizedLabel] || "Calm";
-};
-
-// Enhanced emotion validation (inline function)
-const validateEmotionConsistency = (bestResult, allResults) => {
-  if (allResults.length <= 1) {
-    return bestResult;
-  }
-
-  console.log('🔍 Validating emotion consistency across models...');
-  
-  const emotionCounts = {};
-  const moodCounts = {};
-  
-  allResults.forEach(result => {
-    const emotion = result.emotion.toLowerCase();
-    const mood = mapMood(emotion);
-    
-    emotionCounts[emotion] = (emotionCounts[emotion] || 0) + 1;
-    moodCounts[mood] = (moodCounts[mood] || 0) + 1;
-  });
-
-  console.log('📊 Emotion distribution:', emotionCounts);
-  console.log('📊 Mood distribution:', moodCounts);
-
-  const mostCommonMood = Object.keys(moodCounts).reduce((a, b) => 
-    moodCounts[a] > moodCounts[b] ? a : b
-  );
-
-  const consensusThreshold = Math.max(1, Math.floor(allResults.length / 2));
-  
-  if (moodCounts[mostCommonMood] >= consensusThreshold) {
-    console.log(`✅ Found consensus for mood: ${mostCommonMood}`);
-    
-    const consensusResults = allResults.filter(result => 
-      mapMood(result.emotion) === mostCommonMood
-    );
-    
-    const bestConsensusResult = consensusResults.reduce((prev, current) =>
-      (prev.confidence > current.confidence) ? prev : current
-    );
-
-    return {
-      emotion: bestConsensusResult.emotion,
-      confidence: Math.min(bestConsensusResult.confidence * 1.1, 0.95),
-      allEmotions: bestConsensusResult.allEmotions
-    };
-  }
-
-  console.log('⚠️ No consensus found, using best single result with confidence penalty');
-  
-  return {
-    emotion: bestResult.emotion,
-    confidence: bestResult.confidence * 0.85,
-    allEmotions: bestResult.allEmotions
-  };
-};
+const { mapMood, validateEmotionConsistency } = require('../utils/moodMapper');
 
 // Multiple Hugging Face AI models for better accuracy
 const AI_MODELS = [
@@ -112,6 +8,19 @@ const AI_MODELS = [
   'https://api-inference.huggingface.co/models/dima806/facial_emotions_image_detection'
 ];
 
+// Health check endpoint
+const healthCheck = (req, res) => {
+  res.json({
+    message: 'VibeTunes API running',
+    status: 'connected',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    huggingFaceConfigured: !!process.env.HF_TOKEN,
+    aiMode: 'Enhanced Multi-Model AI Detection'
+  });
+};
+
+// Enhanced AI mood detection with multiple models
 const detectMood = async (req, res) => {
   try {
     const { image } = req.body;
@@ -134,7 +43,7 @@ const detectMood = async (req, res) => {
     }
 
     console.log('🔍 Starting enhanced AI mood detection...');
-    
+
     // Convert base64 to buffer for Hugging Face API
     let imageBuffer;
     try {
@@ -155,7 +64,7 @@ const detectMood = async (req, res) => {
     for (let i = 0; i < AI_MODELS.length; i++) {
       try {
         console.log(`📡 Trying AI model ${i + 1}/${AI_MODELS.length}...`);
-        
+
         const response = await axios.post(
           AI_MODELS[i],
           imageBuffer,
@@ -172,7 +81,7 @@ const detectMood = async (req, res) => {
           const topEmotion = response.data.reduce((prev, current) =>
             (prev.score > current.score) ? prev : current
           );
-          
+
           allResults.push({
             model: i + 1,
             emotion: topEmotion.label,
@@ -181,7 +90,7 @@ const detectMood = async (req, res) => {
           });
 
           console.log(`✅ Model ${i + 1} result: ${topEmotion.label} (${(topEmotion.score * 100).toFixed(1)}%)`);
-          
+
           if (!bestResult) {
             bestResult = {
               emotion: topEmotion.label,
@@ -189,7 +98,7 @@ const detectMood = async (req, res) => {
               allEmotions: response.data
             };
           }
-          
+
           if (topEmotion.score > 0.8) {
             break;
           }
@@ -208,7 +117,7 @@ const detectMood = async (req, res) => {
 
     // Validate emotion consistency and apply corrections
     const validatedResult = validateEmotionConsistency(bestResult, allResults);
-    
+
     // Map emotion to app mood
     const mappedMood = mapMood(validatedResult.emotion);
     const confidence = validatedResult.confidence;
@@ -285,4 +194,4 @@ function generateEnhancedSimulation() {
   };
 }
 
-module.exports = { detectMood };
+module.exports = { detectMood, healthCheck };

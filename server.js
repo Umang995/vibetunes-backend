@@ -3,19 +3,20 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 require('dotenv').config();
 
-// Import routes - Fixed path for flat file structure
-const moodRoutes = require('./moodRoutes');
+// Import routes
+const moodRoutes = require('./routes/moodRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors({
-  origin: '*',
+  origin: '*', // Allow all origins for development
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+// Increase payload limit for base64 images
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -38,6 +39,29 @@ app.get('/', (req, res) => {
     endpoints: {
       health: '/api/test',
       moodDetection: '/api/detectMood'
+    },
+    documentation: {
+      detectMood: {
+        method: 'POST',
+        url: '/api/detectMood',
+        body: {
+          image: 'base64_encoded_image_string'
+        },
+        response: {
+          mood: 'Happy',
+          confidence: 0.94,
+          rawEmotion: 'joy',
+          allEmotions: '[]'
+        }
+      },
+      healthCheck: {
+        method: 'GET',
+        url: '/api/test',
+        response: {
+          message: 'VibeTunes API running',
+          status: 'connected'
+        }
+      }
     }
   });
 });
@@ -55,15 +79,26 @@ app.use((err, req, res, next) => {
 app.use('*', (req, res) => {
   res.status(404).json({
     error: 'Not found',
-    message: `Route ${req.originalUrl} not found`
+    message: `Route ${req.originalUrl} not found`,
+    availableRoutes: [
+      'GET /',
+      'GET /api/test',
+      'POST /api/detectMood'
+    ]
   });
 });
 
 // Start server
 app.listen(PORT, () => {
+  console.log('🎵 =====================================');
   console.log('🎵 VibeTunes Backend Server Started');
+  console.log('🎵 =====================================');
   console.log(`🌐 Server running on port: ${PORT}`);
+  console.log(`🔗 Local URL: http://localhost:${PORT}`);
+  console.log(`🧪 Health check: http://localhost:${PORT}/api/test`);
+  console.log(`🤖 AI Endpoint: http://localhost:${PORT}/api/detectMood`);
   console.log(`🔑 Hugging Face Token: ${process.env.HF_TOKEN ? '✅ Configured' : '❌ Missing'}`);
+  console.log('🎵 =====================================');
 });
 
 module.exports = app;
